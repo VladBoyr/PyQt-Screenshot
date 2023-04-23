@@ -1,4 +1,5 @@
 import keyboard
+import os.path
 import sys
 from PIL import ImageGrab
 from PyQt6 import QtCore, QtGui, QtWidgets
@@ -20,6 +21,19 @@ class SnippingWidget(QtWidgets.QMainWindow):
         self.start_point = QtCore.QPointF()
         self.end_point = QtCore.QPointF()
 
+        self.screenshot_counter = 0
+
+    def screenshot_file_name(self):
+        file_name = "screenshot"
+        file_ext = "png"
+        full_file_name = f"{file_name}.{file_ext}"
+        while 1 == 1:
+            if os.path.exists(full_file_name):
+                self.screenshot_counter += 1
+                full_file_name = f"{file_name} ({self.screenshot_counter}).{file_ext}"
+            else:
+                return full_file_name
+
     def mousePressEvent(self, event):
         self.start_point = QtCore.QPointF(event.pos())
         self.end_point = QtCore.QPointF(event.pos())
@@ -33,7 +47,7 @@ class SnippingWidget(QtWidgets.QMainWindow):
         r = QtCore.QRectF(self.start_point, self.end_point).normalized()
         self.hide()
         img = ImageGrab.grab(bbox=r.getCoords())
-        img.save("testImage.png")
+        img.save(self.screenshot_file_name())
         QtWidgets.QApplication.restoreOverrideCursor()
         self.closed.emit()
         self.start_point = QtCore.QPointF()
@@ -60,40 +74,19 @@ class SnippingWidget(QtWidgets.QMainWindow):
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        self.centralWidget = QtWidgets.QWidget()
-        self.setCentralWidget(self.centralWidget)
-
-        self.label = QtWidgets.QLabel(alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.button = QtWidgets.QPushButton('Делать скриншот')
+        self.button = QtWidgets.QPushButton()
         self.button.clicked.connect(self.activate_snipping)
-
-        layout = QtWidgets.QVBoxLayout(self.centralWidget)
-        layout.addWidget(self.label, 1)
-        layout.addWidget(self.button, 0)
-
         self.snipper = SnippingWidget()
-        self.snipper.closed.connect(self.on_closed)
-        keyboard.add_hotkey("print screen", lambda: self.button.click())
 
     def activate_snipping(self):
         self.snipper.showFullScreen()
         QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.CrossCursor)
-        self.hide()
-
-    def on_closed(self):
-        pixmap = QtGui.QPixmap("testImage.png")
-        self.label.setPixmap(pixmap)
-        self.show()
-        self.adjustSize()
-
-
-def test(main_window):
-    print(main_window.button)
 
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     window = MainWindow()
     window.resize(400, 300)
-    window.show()
+    keyboard.add_hotkey("print screen", lambda: window.button.click())
+    keyboard.add_hotkey("escape", lambda: app.exit())
     sys.exit(app.exec())
